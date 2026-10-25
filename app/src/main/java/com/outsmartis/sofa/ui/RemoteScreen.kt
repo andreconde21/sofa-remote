@@ -97,6 +97,19 @@ private val APPS = listOf(
     TvApp("Twitch", "twitch://home", Color(0xFF9146FF)),
 )
 
+private data class TvSearch(val name: String, val link: (String) -> String, val color: Color)
+
+private fun q(text: String) = java.net.URLEncoder.encode(text.trim(), "UTF-8")
+
+// Apps like YouTube and Netflix draw their own on-screen keyboard: the TV reports no text box
+// and ignores typed letters there, so the phone hands the words to the app as a search link.
+private val SEARCHES = listOf(
+    TvSearch("YouTube", { "https://www.youtube.com/results?search_query=${q(it)}" }, Color(0xFFFF3B30)),
+    TvSearch("Netflix", { "https://www.netflix.com/search?q=${q(it)}" }, Color(0xFFE50914)),
+    TvSearch("Spotify", { "spotify:search:${android.net.Uri.encode(it.trim())}" }, Color(0xFF1ED760)),
+    TvSearch("Play Store", { "market://search?q=${q(it)}" }, Color(0xFF34A853)),
+)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RemoteScreen(hub: TvHub, onAddTv: () -> Unit) {
@@ -275,25 +288,42 @@ private fun TypingPanel(session: RemoteSession?, state: TvState, presser: Presse
     }
     val label = state.textField?.label?.takeIf { it.isNotBlank() }
 
-    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        TextField(
-            value = value,
-            onValueChange = { v ->
-                val old = value.text
-                value = v
-                if (old != v.text) lastLocalEdit = System.currentTimeMillis()
-                session?.type(old, v.text)
-            },
-            modifier = Modifier.weight(1f).focusRequester(focus),
-            placeholder = { Text(label ?: if (state.textField != null) "Type here, it appears on the TV" else "Select a text box on the TV, then type") },
-            singleLine = true,
-            shape = RoundedCornerShape(16.dp),
-            colors = TextFieldDefaults.colors(focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { presser.tap(Keys.ENTER) }),
-        )
-        IconButton(onClick = { presser.tap(Keys.ENTER) }) { Icon(Icons.AutoMirrored.Rounded.KeyboardReturn, "Enter") }
-        IconButton(onClick = { keyboard?.hide(); onClose() }) { Icon(Icons.Rounded.Close, "Close keyboard") }
+    Column {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextField(
+                value = value,
+                onValueChange = { v ->
+                    val old = value.text
+                    value = v
+                    if (old != v.text) lastLocalEdit = System.currentTimeMillis()
+                    session?.type(old, v.text)
+                },
+                modifier = Modifier.weight(1f).focusRequester(focus),
+                placeholder = { Text(label ?: if (state.textField != null) "Type here, it appears on the TV" else "Type, then pick an app to search in") },
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                colors = TextFieldDefaults.colors(focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { presser.tap(Keys.ENTER) }),
+            )
+            IconButton(onClick = { presser.tap(Keys.ENTER) }) { Icon(Icons.AutoMirrored.Rounded.KeyboardReturn, "Enter") }
+            IconButton(onClick = { keyboard?.hide(); onClose() }) { Icon(Icons.Rounded.Close, "Close keyboard") }
+        }
+        if (state.textField == null && value.text.isNotBlank()) {
+            Text(
+                "No text box on the TV? Search in an app instead:",
+                color = TextDim, fontSize = 12.sp, modifier = Modifier.padding(start = 20.dp, top = 4.dp),
+            )
+            LazyRow(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp)) {
+                items(SEARCHES) { search ->
+                    Box(
+                        Modifier.clip(RoundedCornerShape(14.dp)).background(search.color.copy(alpha = 0.16f))
+                            .clickable { presser.haptic(); session?.launch(search.link(value.text)) }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                    ) { Text(search.name, color = search.color, fontWeight = FontWeight.SemiBold, fontSize = 14.sp) }
+                }
+            }
+        }
     }
 }
 

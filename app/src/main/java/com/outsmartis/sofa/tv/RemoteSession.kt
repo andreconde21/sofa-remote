@@ -115,6 +115,9 @@ class RemoteSession(
                 var target = first.second
                 while (true) target = edits.tryReceive().getOrNull()?.second ?: break
                 val st = _state.value
+                // No text box on the TV (an app's own on-screen keyboard): typed letters are ignored
+                // there and Backspace goes back a screen, so the text stays on the phone for a search link.
+                if (st.textField == null) continue
                 val ime = st.textField != null && st.features and 4 != 0
                 // Diff against what the TV actually holds, so a missed edit heals on the next one.
                 val plan = Typist.plan(st.textField?.value ?: first.first, target, ime)
