@@ -26,7 +26,7 @@ The protobuf messages are hand-encoded (`tv/Proto.kt`) and the client certificat
 ./gradlew testDebugUnitTest assembleDebug
 ```
 
-Release: push a tag `vX.Y.Z`; GitHub Actions signs the APK and attaches it to the release.
+Release: `./release.sh X.Y.Z` builds and signs the APK, tags, and attaches it to a GitHub Release. The signing key never leaves the build machine; CI only runs the tests.
 
 `LiveTvDriver` (a skipped-by-default test) drives a real TV or the Google TV emulator from the JVM: set `SOFA_TV_DIR` and append commands to `$SOFA_TV_DIR/cmd.txt`. On the emulator, the remote port refuses connections from its own loopback, so use `adb emu redir add tcp:26466:6466` (and 26467:6467) instead of `adb forward`.
 
