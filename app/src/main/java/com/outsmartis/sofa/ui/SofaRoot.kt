@@ -26,6 +26,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -58,11 +59,13 @@ fun SofaRoot(hub: TvHub) {
     var adding by remember { mutableStateOf(false) }
     LaunchedEffect(found) { hub.refreshHosts(found) }
 
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding()) {
-        if (tvs.isEmpty() || adding) {
-            AddTvScreen(hub, canClose = tvs.isNotEmpty(), onDone = { adding = false })
-        } else {
-            RemoteScreen(hub, onAddTv = { adding = true })
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+            if (tvs.isEmpty() || adding) {
+                AddTvScreen(hub, canClose = tvs.isNotEmpty(), onDone = { adding = false })
+            } else {
+                RemoteScreen(hub, onAddTv = { adding = true })
+            }
         }
     }
 }
@@ -162,7 +165,11 @@ fun PairDialog(hub: TvHub, id: String, name: String, host: String, onClose: (pai
         scope.launch {
             runCatching { hub.startPairing(host) }
                 .onSuccess { step = "code" }
-                .onFailure { error = "Couldn't reach the TV at $host. Is it on and on this Wi-Fi? (${it.message})"; step = "error" }
+                .onFailure {
+                    val why = it.message?.takeIf { m -> m.isNotBlank() && m != host }?.let { m -> " ($m)" }.orEmpty()
+                    error = "Couldn't reach the TV at $host. Is it on and on this Wi-Fi?$why"
+                    step = "error"
+                }
         }
     }
 

@@ -2,7 +2,9 @@ package com.outsmartis.sofa
 
 import android.os.Bundle
 import android.view.KeyEvent
+import android.graphics.Color
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.outsmartis.sofa.tv.Keys
@@ -14,7 +16,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(SystemBarStyle.dark(Color.TRANSPARENT), SystemBarStyle.dark(Color.TRANSPARENT))
         setContent { SofaTheme { SofaRoot(hub) } }
     }
 

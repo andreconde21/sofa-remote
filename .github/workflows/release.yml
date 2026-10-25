@@ -1,0 +1,50 @@
+name: Release APK
+
+# Push a tag vX.Y.Z -> signed release APK attached to a GitHub Release.
+# The landing page links to releases/latest/download/sofa.apk.
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Test
+        run: ./gradlew --no-daemon testReleaseUnitTest
+
+      - name: Build signed APK
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          SOFA_KEYSTORE_B64: ${{ secrets.SOFA_KEYSTORE_B64 }}
+          SOFA_KEYSTORE_PASSWORD: ${{ secrets.SOFA_KEYSTORE_PASSWORD }}
+        run: |
+          echo "$SOFA_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/sofa.jks"
+          export SOFA_KEYSTORE="$RUNNER_TEMP/sofa.jks"
+          export SOFA_VERSION_NAME="${GITHUB_REF_NAME#v}"
+          export SOFA_VERSION_CODE="$GITHUB_RUN_NUMBER"
+          ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk "sofa-${SOFA_VERSION_NAME}.apk"
+          cp app/build/outputs/apk/release/app-release.apk sofa.apk
+          sha256sum sofa.apk | cut -d' ' -f1 > sofa.apk.sha256
+          rm -f "$RUNNER_TEMP/sofa.jks"
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" sofa.apk sofa.apk.sha256 "sofa-${GITHUB_REF_NAME#v}.apk" \
+            --title "Sofa ${GITHUB_REF_NAME#v}" --generate-notes
